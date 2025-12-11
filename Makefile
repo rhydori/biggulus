@@ -1,2 +1,2 @@
 server:
-	@@ cd cmd/server && go run .
+	@@ cd cmd/ && go run .
