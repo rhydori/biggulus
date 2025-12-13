@@ -76,7 +76,9 @@ func (s *Server) readConn(c *session.Client) {
 	scanner.Split(bufio.ScanLines)
 
 	for scanner.Scan() {
-		msg := scanner.Text()
+		msg := scanner.Bytes()
+		s.handleMsg(c, msg)
+
 		logs.Debugf("%s: %s", c.Conn.RemoteAddr(), msg)
 		s.handleMsg(c, []byte(msg))
 	}
