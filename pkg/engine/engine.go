@@ -17,10 +17,10 @@ type Engine struct {
 	UpdateCh chan []byte
 }
 
-func NewEngine(tickMs int8, speed float64, cs *session.ClientStore) *Engine {
+func NewEngine(tickInterval time.Duration, characterSpeed float64, cs *session.ClientStore) *Engine {
 	return &Engine{
-		tick:     time.Duration(tickMs) * time.Millisecond,
-		speed:    speed * float64(tickMs) / 1000.0,
+		tick:     tickInterval,
+		speed:    characterSpeed * tickInterval.Seconds(),
 		cs:       cs,
 		UpdateCh: make(chan []byte, 1024),
 	}
@@ -28,6 +28,7 @@ func NewEngine(tickMs int8, speed float64, cs *session.ClientStore) *Engine {
 
 func (e *Engine) StartEngine() {
 	logs.Info("Engine started at ", e.tick)
+
 	ticker := time.NewTicker(e.tick)
 	go func() {
 		for range ticker.C {
