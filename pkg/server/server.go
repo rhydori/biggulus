@@ -80,7 +80,6 @@ func (s *Server) readConn(c *session.Client) {
 		s.handleMsg(c, msg)
 
 		logs.Debugf("%s: %s", c.Conn.RemoteAddr(), msg)
-		s.handleMsg(c, []byte(msg))
 	}
 	if err := scanner.Err(); err != nil {
 		logs.Errorf("Scanner error from %s: %v", c.Conn.RemoteAddr(), err)
