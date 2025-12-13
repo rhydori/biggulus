@@ -126,10 +126,7 @@ func (s *Server) broadcast() {
 			s.session.Mu.Unlock()
 
 			for _, c := range clients {
-				out := make([]byte, len(msg)+1)
-				copy(out, msg)
-				out[len(msg)] = '\n'
-				s.writeConn(c, out)
+				s.writeConn(c, append(msg, '\n'))
 			}
 		}
 	}()
