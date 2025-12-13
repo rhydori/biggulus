@@ -13,8 +13,9 @@ type ClientStore struct {
 }
 
 type Client struct {
-	ID    string
-	Conn  net.Conn
+	ID   string
+	Conn net.Conn
+
 	Input *Input
 	X, Y  float64
 

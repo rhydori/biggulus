@@ -34,9 +34,9 @@ func (s *Server) StartServer() {
 		logs.Fatalf("StartServer: %v", err)
 	}
 	logs.Infof("Server started at %s", ln.Addr())
+
 	go func() {
 		for msg := range s.engine.UpdateCh {
-			// não bloquear se bcastCh estiver cheio; dropar é aceitável
 			select {
 			case s.bcastCh <- msg:
 			default:
@@ -55,7 +55,11 @@ func (s *Server) acceptConn(ln net.Listener) {
 			logs.Errorf("acceptConn: %v", err)
 			continue
 		}
-		c := &session.Client{ID: uuid.NewString(), Conn: conn, Input: &session.Input{}}
+		c := &session.Client{
+			ID:    uuid.NewString(),
+			Conn:  conn,
+			Input: &session.Input{},
+		}
 		s.session.AddClient(c)
 
 		logs.Debugf("Connected: %s", c.Conn.RemoteAddr())
