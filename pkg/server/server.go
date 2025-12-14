@@ -78,13 +78,6 @@ func (s *Server) readConn(c *session.Client) {
 	}
 }
 
-func (s *Server) writeConn(c *session.Client, msg string) {
-	_, err := c.Conn.Write([]byte(msg))
-	if err != nil {
-		logs.Errorf("Write error to %s: %v", c.Conn.RemoteAddr(), err)
-	}
-}
-
 func (s *Server) handleMsg(c *session.Client, msg string) {
 	// parts example: entity|action|obj|state
 	parts := strings.Split(msg, "|")
