@@ -9,13 +9,15 @@ import (
 )
 
 const (
-	tickInterval   = 16 * time.Millisecond
-	characterSpeed = 300.0
+	tickInterval = 16 * time.Millisecond
+	charSpeed    = 300.0
 )
 
 func main() {
 	cs := session.NewClientStore()
-	e := engine.NewEngine(tickInterval, characterSpeed, cs)
+	p := engine.NewPhysics(charSpeed)
+
+	e := engine.NewEngine(tickInterval, cs, p)
 	s := server.NewServer("[::]:8080", e, cs)
 
 	s.StartServer()
