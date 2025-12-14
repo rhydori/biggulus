@@ -6,7 +6,7 @@ import (
 
 type ClientStore struct {
 	Clients map[string]*Client
-	Mu      sync.Mutex
+	Mu      sync.RWMutex
 }
 
 func NewClientStore() *ClientStore {
@@ -28,8 +28,8 @@ func (cs *ClientStore) RemoveClientFromStore(id string) {
 }
 
 func (cs *ClientStore) ClientStoreSnapshot() []*Client {
-	cs.Mu.Lock()
-	defer cs.Mu.Unlock()
+	cs.Mu.RLock()
+	defer cs.Mu.RUnlock()
 
 	out := make([]*Client, 0, len(cs.Clients))
 	for _, c := range cs.Clients {

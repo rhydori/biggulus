@@ -36,12 +36,7 @@ func (e *Engine) StartEngine() {
 }
 
 func (e *Engine) updateLoop() {
-	e.cs.Mu.Lock()
-	clients := make([]*session.Client, 0, len(e.cs.Clients))
-	for _, c := range e.cs.Clients {
-		clients = append(clients, c)
-	}
-	e.cs.Mu.Unlock()
+	clients := e.cs.ClientStoreSnapshot()
 
 	for _, client := range clients {
 		char := client.Char
