@@ -98,12 +98,7 @@ func (s *Server) handleMsg(c *session.Client, msg string) {
 
 func (s *Server) broadcast() {
 	for msg := range s.bcastCh {
-		s.clientStore.Mu.Lock()
-		clients := make([]*session.Client, 0, len(s.clientStore.Clients))
-		for _, c := range s.clientStore.Clients {
-			clients = append(clients, c)
-		}
-		s.clientStore.Mu.Unlock()
+		clients := s.clientStore.ClientStoreSnapshot()
 
 		for _, c := range clients {
 			select {
