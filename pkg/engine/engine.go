@@ -30,14 +30,12 @@ func (e *Engine) StartEngine() {
 	logs.Info("Engine started at ", e.tick)
 
 	ticker := time.NewTicker(e.tick)
-	go func() {
 		for range ticker.C {
-			e.updateClients()
+		e.updateLoop()
 		}
-	}()
 }
 
-func (e *Engine) updateClients() {
+func (e *Engine) updateLoop() {
 	e.cs.Mu.Lock()
 	clients := make([]*session.Client, 0, len(e.cs.Clients))
 	for _, c := range e.cs.Clients {
