@@ -3,28 +3,28 @@ package server
 import (
 	"bufio"
 	"net"
+	"strings"
 
-	"github.com/google/uuid"
 	"github.com/rhydori/biggulus/pkg/engine"
 	"github.com/rhydori/biggulus/pkg/session"
 	"github.com/rhydori/logs"
 )
 
 type Server struct {
-	svrAddr string
-	engine  *engine.Engine
-	session *session.ClientStore
+	svrAddr     string
+	engine      *engine.Engine
+	clientStore *session.ClientStore
 
 	bcastCh chan []byte
 }
 
-func NewServer(svrAddr string, engine *engine.Engine, session *session.ClientStore) *Server {
+func NewServer(svrAddr string, engine *engine.Engine, cs *session.ClientStore) *Server {
 	return &Server{
-		svrAddr: svrAddr,
-		engine:  engine,
-		session: session,
+		svrAddr:     svrAddr,
+		engine:      engine,
+		clientStore: cs,
 
-		bcastCh: make(chan []byte, 1024),
+		bcastCh: make(chan []byte, 256),
 	}
 }
 
@@ -35,17 +35,9 @@ func (s *Server) StartServer() {
 	}
 	logs.Infof("Server started at %s", ln.Addr())
 
-	go func() {
-		for msg := range s.engine.UpdateCh {
-			select {
-			case s.bcastCh <- msg:
-			default:
-				logs.Warnf("Server broadcast channel full, dropping update")
-			}
-		}
-	}()
-	go s.broadcast()
 	go s.acceptConn(ln)
+	go s.broadcast()
+	go s.forwardEngineUpdates()
 }
 
 func (s *Server) acceptConn(ln net.Listener) {
@@ -55,15 +47,12 @@ func (s *Server) acceptConn(ln net.Listener) {
 			logs.Errorf("acceptConn: %v", err)
 			continue
 		}
-		c := &session.Client{
-			ID:    uuid.NewString(),
-			Conn:  conn,
-			Input: &session.Input{},
-		}
-		s.session.AddClient(c)
+		logs.Debugf("Connected: %s", conn.RemoteAddr())
 
-		logs.Debugf("Connected: %s", c.Conn.RemoteAddr())
-		s.writeConn(c, []byte("client_id|"+c.ID+"\n"))
+		c := session.NewClient(conn)
+		s.clientStore.AddClientToStore(c)
+
+		c.OutCh <- []byte("client_id|" + c.ID + "\n")
 
 		go s.readConn(c)
 	}
@@ -72,7 +61,8 @@ func (s *Server) acceptConn(ln net.Listener) {
 func (s *Server) readConn(c *session.Client) {
 	defer func() {
 		c.Conn.Close()
-		s.session.RemoveClient(c.ID)
+		close(c.OutCh)
+		s.clientStore.RemoveClientFromStore(c.ID)
 
 		logs.Debugf("Disconnected: %s", c.Conn.RemoteAddr())
 	}()
@@ -80,57 +70,64 @@ func (s *Server) readConn(c *session.Client) {
 	scanner.Split(bufio.ScanLines)
 
 	for scanner.Scan() {
-		msg := scanner.Bytes()
+		msg := scanner.Text()
 		s.handleMsg(c, msg)
-
-		logs.Debugf("%s: %s", c.Conn.RemoteAddr(), msg)
 	}
 	if err := scanner.Err(); err != nil {
 		logs.Errorf("Scanner error from %s: %v", c.Conn.RemoteAddr(), err)
 	}
 }
 
-func (s *Server) writeConn(c *session.Client, msg []byte) {
-	_, err := c.Conn.Write(msg)
+func (s *Server) writeConn(c *session.Client, msg string) {
+	_, err := c.Conn.Write([]byte(msg))
 	if err != nil {
 		logs.Errorf("Write error to %s: %v", c.Conn.RemoteAddr(), err)
 	}
 }
 
-func (s *Server) handleMsg(c *session.Client, msg []byte) {
-	switch string(msg) {
-	case "Left_PRESS":
-		s.session.UpdateClientInput(c.ID, "Left", true)
-	case "Left_RELEASE":
-		s.session.UpdateClientInput(c.ID, "Left", false)
-	case "Right_PRESS":
-		s.session.UpdateClientInput(c.ID, "Right", true)
-	case "Right_RELEASE":
-		s.session.UpdateClientInput(c.ID, "Right", false)
-	case "Up_PRESS":
-		s.session.UpdateClientInput(c.ID, "Up", true)
-	case "Up_RELEASE":
-		s.session.UpdateClientInput(c.ID, "Up", false)
-	case "Down_PRESS":
-		s.session.UpdateClientInput(c.ID, "Down", true)
-	case "Down_RELEASE":
-		s.session.UpdateClientInput(c.ID, "Down", false)
+func (s *Server) handleMsg(c *session.Client, msg string) {
+	// parts example: entity|action|obj|state
+	parts := strings.Split(msg, "|")
+	if parts[0] != "character" {
+		return
+	}
+	entity := parts[0]
+
+	logs.Debug(parts)
+	switch entity {
+	case "character":
+		c.Char.HandleCharacter(parts)
+	case "inventory":
+	default:
+		logs.Warnf("handleMsg: %s - Entity '%s' not found", c.Conn.RemoteAddr(), entity)
 	}
 }
 
 func (s *Server) broadcast() {
-	go func() {
-		for msg := range s.bcastCh {
-			s.session.Mu.Lock()
-			clients := make([]*session.Client, 0, len(s.session.Clients))
-			for _, c := range s.session.Clients {
-				clients = append(clients, c)
-			}
-			s.session.Mu.Unlock()
+	for msg := range s.bcastCh {
+		s.clientStore.Mu.Lock()
+		clients := make([]*session.Client, 0, len(s.clientStore.Clients))
+		for _, c := range s.clientStore.Clients {
+			clients = append(clients, c)
+		}
+		s.clientStore.Mu.Unlock()
 
-			for _, c := range clients {
-				s.writeConn(c, append(msg, '\n'))
+		for _, c := range clients {
+			select {
+			case c.OutCh <- append(msg, '\n'):
+			default:
+				logs.Warnf("Client %s OutCh full, dropping messages", c.Conn)
 			}
 		}
-	}()
+	}
+}
+
+func (s *Server) forwardEngineUpdates() {
+	for msg := range s.engine.UpdateCh {
+		select {
+		case s.bcastCh <- msg:
+		default:
+			logs.Warnf("Broadcast buffer full, dropping")
+		}
+	}
 }

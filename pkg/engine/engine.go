@@ -30,9 +30,9 @@ func (e *Engine) StartEngine() {
 	logs.Info("Engine started at ", e.tick)
 
 	ticker := time.NewTicker(e.tick)
-		for range ticker.C {
+	for range ticker.C {
 		e.updateLoop()
-		}
+	}
 }
 
 func (e *Engine) updateLoop() {
@@ -44,32 +44,36 @@ func (e *Engine) updateLoop() {
 	e.cs.Mu.Unlock()
 
 	for _, client := range clients {
+		char := client.Char
+
+		char.Mu.Lock()
 		dir := helper.Vec2{}
-		if client.Input.Left {
+		if char.Input.Left {
 			dir.X -= 1
 		}
-		if client.Input.Right {
+		if char.Input.Right {
 			dir.X += 1
 		}
-		if client.Input.Up {
+		if char.Input.Up {
 			dir.Y -= 1
 		}
-		if client.Input.Down {
+		if char.Input.Down {
 			dir.Y += 1
 		}
 		dir = dir.Normalize()
-		client.X += dir.X * e.speed
-		client.Y += dir.Y * e.speed
-		if client.X != client.LastX || client.Y != client.LastY {
-			msg := []byte(fmt.Sprintf("move|%s|%f|%f", client.ID, client.X, client.Y))
+		char.X += dir.X * e.speed
+		char.Y += dir.Y * e.speed
+		if char.X != char.LX || char.Y != char.LY {
+			msg := []byte(fmt.Sprintf("move|%s|%f|%f", client.ID, char.X, char.Y))
 			select {
 			case e.UpdateCh <- msg:
 			default:
 				logs.Warnf("Update Channel is full, dropping update for %s", client.ID)
 			}
 
-			client.LastX = client.X
-			client.LastY = client.Y
+			char.LX = char.X
+			char.LY = char.Y
 		}
+		char.Mu.Unlock()
 	}
 }
