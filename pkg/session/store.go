@@ -44,7 +44,7 @@ func (cs *ClientStore) RemoveClientFromStore(id string) {
 	delete(cs.Clients, id)
 }
 
-func (cs *ClientStore) ClientStoreSnapshot(id string) []*Client {
+func (cs *ClientStore) ClientStoreSnapshot() []*Client {
 	cs.Mu.Lock()
 	defer cs.Mu.Unlock()
 
