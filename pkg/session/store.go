@@ -9,23 +9,6 @@ type ClientStore struct {
 	Mu      sync.Mutex
 }
 
-type InputSetter func(input *Input, state bool)
-
-var inputActions = map[string]InputSetter{
-	"Left": func(i *Input, state bool) {
-		i.Left = state
-	},
-	"Right": func(i *Input, state bool) {
-		i.Right = state
-	},
-	"Up": func(i *Input, state bool) {
-		i.Up = state
-	},
-	"Down": func(i *Input, state bool) {
-		i.Down = state
-	},
-}
-
 func NewClientStore() *ClientStore {
 	return &ClientStore{
 		Clients: make(map[string]*Client),
