@@ -28,10 +28,11 @@ func NewEngine(tickInterval time.Duration, cs *session.ClientStore, physic *Phys
 func (e *Engine) StartEngine() {
 	logs.Info("Engine started at ", e.tick)
 
-	lastTime := time.Now()
 	ticker := time.NewTicker(e.tick)
-
 	defer ticker.Stop()
+
+	lastTime := time.Now()
+
 	for range ticker.C {
 		now := time.Now()
 		delta := now.Sub(lastTime).Seconds()
