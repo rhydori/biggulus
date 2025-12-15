@@ -81,10 +81,12 @@ func (s *Server) readConn(c *session.Client) {
 func (s *Server) handleMsg(c *session.Client, msg string) {
 	// parts example: entity|action|obj|state
 	parts := strings.Split(msg, "|")
-	if parts[0] != "character" {
+
+	entity := parts[0]
+	if entity != "character" {
+		logs.Warnf("handleMsg: Entity not found - %s", entity)
 		return
 	}
-	entity := parts[0]
 
 	logs.Debug(parts)
 	switch entity {
