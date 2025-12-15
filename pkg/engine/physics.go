@@ -22,16 +22,22 @@ func NewPhysics(charSpeed float64) *Physics {
 }
 
 func (p *Physics) ProcessMovement(clients []*session.Client, delta float64, UpdateCh chan<- []byte) {
+	if delta <= 0 {
+		return
+	}
 	for _, client := range clients {
-		char := client.Char
+		if client == nil || client.Char == nil {
+			continue
+		}
+		charSnap := client.Char.CharacterSnapshot()
+		if charSnap == nil || charSnap.Input == nil {
+			continue
+		}
+		input := charSnap.Input
+		pos := charSnap.Position
+		last := charSnap.LastPosition
 
-		char.Mu.Lock()
-		input := *char.Input
-		x, y := char.X, char.Y
-		lx, ly := char.LX, char.LY
-		char.Mu.Unlock()
-
-		dir := helper.Vec2{}
+		dir := helper.Vector2{}
 		if input.Left {
 			dir.X -= 1
 		}
@@ -46,16 +52,14 @@ func (p *Physics) ProcessMovement(clients []*session.Client, delta float64, Upda
 		}
 		dir = dir.Normalize()
 
-		moveDist := p.charSpeed * delta
+		move := p.charSpeed * delta
 
-		nx := x + dir.X*moveDist
-		ny := y + dir.Y*moveDist
+		nx := pos.X + dir.X*move
+		ny := pos.Y + dir.Y*move
 
-		if math.Abs(nx-lx) > eps || math.Abs(ny-ly) > eps {
-			char.Mu.Lock()
-			char.X, char.Y = nx, ny
-			char.LX, char.LY = nx, ny
-			char.Mu.Unlock()
+		if math.Abs(nx-last.X) > eps || math.Abs(ny-last.Y) > eps {
+			newPos := helper.Vector2{X: nx, Y: ny}
+			client.Char.ApplyPosition(newPos)
 
 			msg := []byte(fmt.Sprintf("move|%s|%.2f|%.2f", client.ID, nx, ny))
 			select {
