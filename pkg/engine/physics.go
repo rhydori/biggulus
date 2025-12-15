@@ -2,11 +2,14 @@ package engine
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/rhydori/biggulus/pkg/helper"
 	"github.com/rhydori/biggulus/pkg/session"
 	"github.com/rhydori/logs"
 )
+
+const eps = 0.01
 
 type Physics struct {
 	charSpeed float64
@@ -48,7 +51,7 @@ func (p *Physics) ProcessMovement(clients []*session.Client, delta float64, Upda
 		nx := x + dir.X*moveDist
 		ny := y + dir.Y*moveDist
 
-		if nx != lx || ny != ly {
+		if math.Abs(nx-lx) > eps || math.Abs(ny-ly) > eps {
 			char.Mu.Lock()
 			char.X, char.Y = nx, ny
 			char.LX, char.LY = nx, ny
