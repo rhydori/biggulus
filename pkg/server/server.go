@@ -87,8 +87,6 @@ func (s *Server) handleMsg(c *session.Client, msg string) {
 		logs.Warnf("handleMsg: Entity not found - %s", entity)
 		return
 	}
-
-	logs.Debug(parts)
 	switch entity {
 	case "character":
 		c.Char.HandleCharacter(parts)
