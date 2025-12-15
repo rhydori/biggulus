@@ -47,30 +47,29 @@ func (char *Character) UpdateCharacterXY(msg []string) {
 	state := msg[3]
 
 	switch key {
-	case "up":
-		b := InputGetState(state)
-		char.Input.Up = b
-	case "down":
-		b := InputGetState(state)
-		char.Input.Down = b
-	case "left":
-		b := InputGetState(state)
-		char.Input.Left = b
-	case "right":
-		b := InputGetState(state)
-		char.Input.Right = b
-	}
-
-}
-
-func InputGetState(state string) bool {
-	switch state {
-	case "pressed":
-		return true
-	case "released":
-		return false
+	case "right", "left", "up", "down":
 	default:
-		logs.Warnf("InputGetState: State not found '%s'", state)
-		return false
+		logs.Warnf("UpdateCharacterXY: InputKey not found: %s", key)
+		return
 	}
+
+	switch state {
+	case "pressed", "released":
+	default:
+		logs.Warnf("UpdateCharacterXY: InputState not found: %s", state)
+		return
+	}
+
+	val := state == "pressed"
+	switch key {
+	case "up":
+		char.Input.Up = val
+	case "down":
+		char.Input.Down = val
+	case "left":
+		char.Input.Left = val
+	case "right":
+		char.Input.Right = val
+	}
+
 }
