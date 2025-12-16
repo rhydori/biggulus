@@ -7,4 +7,6 @@ server:
 
 build:
 	@@ go build -o $(OUTPUT) $(MAIN_PATH)
+
+run: build
 	@@ explorer.exe "$(LINK)"
