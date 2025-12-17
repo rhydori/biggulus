@@ -34,7 +34,8 @@ func (c *Client) writePump() {
 	for msg := range c.OutCh {
 		c.Conn.SetWriteDeadline(time.Now().Add(5 * time.Second))
 		if _, err := c.Conn.Write(msg); err != nil {
-			logs.Errorf("writePump error: %s: %v", c.Conn.RemoteAddr(), err)
+			logs.Errorf("writePump error: %s - '%v'", c.Conn.RemoteAddr(), err)
+			c.Conn.Close()
 			return
 		}
 	}
