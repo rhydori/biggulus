@@ -2,9 +2,10 @@ package server
 
 import (
 	"bufio"
+	"errors"
 	"net"
-	"strings"
 
+	"github.com/rhydori/biggulus/pkg/auth"
 	"github.com/rhydori/biggulus/pkg/engine"
 	"github.com/rhydori/biggulus/pkg/session"
 	"github.com/rhydori/logs"
@@ -14,15 +15,17 @@ type Server struct {
 	svrAddr     string
 	engine      *engine.Engine
 	clientStore *session.ClientStore
+	authService *auth.AuthService
 
 	bcastCh chan []byte
 }
 
-func NewServer(svrAddr string, engine *engine.Engine, cs *session.ClientStore) *Server {
+func NewServer(svrAddr string, engine *engine.Engine, cs *session.ClientStore, authService *auth.AuthService) *Server {
 	return &Server{
 		svrAddr:     svrAddr,
 		engine:      engine,
 		clientStore: cs,
+		authService: authService,
 
 		bcastCh: make(chan []byte, 256),
 	}
@@ -74,48 +77,10 @@ func (s *Server) readConn(c *session.Client) {
 		s.handleMsg(c, msg)
 	}
 	if err := scanner.Err(); err != nil {
-		logs.Errorf("Scanner error from %s: %v", c.Conn.RemoteAddr(), err)
-	}
-}
-
-func (s *Server) handleMsg(c *session.Client, msg string) {
-	// parts example: entity|action|obj|state
-	parts := strings.Split(msg, "|")
-
-	entity := parts[0]
-	if entity != "character" {
-		logs.Warnf("handleMsg: Entity not found - %s", entity)
-		return
-	}
-	switch entity {
-	case "character":
-		c.Char.HandleCharacter(parts)
-	case "inventory":
-	default:
-		logs.Warnf("handleMsg: %s - Entity '%s' not found", c.Conn.RemoteAddr(), entity)
-	}
-}
-
-func (s *Server) broadcast() {
-	for msg := range s.bcastCh {
-		clients := s.clientStore.ClientStoreSnapshot()
-
-		for _, c := range clients {
-			select {
-			case c.OutCh <- append(msg, '\n'):
-			default:
-				logs.Warnf("Client %s OutCh full, dropping messages", c.Conn)
-			}
+		var netErr *net.OpError
+		if errors.As(err, &netErr) {
+			return
 		}
-	}
-}
-
-func (s *Server) forwardEngineUpdates() {
-	for msg := range s.engine.UpdateCh {
-		select {
-		case s.bcastCh <- msg:
-		default:
-			logs.Warnf("Broadcast buffer full, dropping")
-		}
+		logs.Errorf("readConn: ScannerError from %s - '%v'", c.Conn.RemoteAddr(), err)
 	}
 }

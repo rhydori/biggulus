@@ -3,9 +3,12 @@ package main
 import (
 	"time"
 
+	"github.com/rhydori/biggulus/pkg/auth"
+	"github.com/rhydori/biggulus/pkg/database"
 	"github.com/rhydori/biggulus/pkg/engine"
 	"github.com/rhydori/biggulus/pkg/server"
 	"github.com/rhydori/biggulus/pkg/session"
+	"github.com/rhydori/logs"
 )
 
 const (
@@ -14,14 +17,28 @@ const (
 )
 
 func main() {
-	cs := session.NewClientStore()
-	p := engine.NewPhysics(charSpeed)
+	db := database.OpenSQLite("./sqlite/game.db")
+	if db == nil {
+		logs.Fatal("Database is nil.")
+	}
+	userRep := auth.NewSQLiteUserRepo(db)
+	tokenRep := auth.NewSQLiteTokenRepo(db)
+	authService := auth.NewService(userRep, tokenRep)
 
-	e := engine.NewEngine(tickInterval, cs, p)
-	s := server.NewServer("[::]:8080", e, cs)
+	clientStore := session.NewClientStore()
 
-	s.StartServer()
-	e.StartEngine()
+	physics := engine.NewPhysics(charSpeed)
+	engine := engine.NewEngine(tickInterval, clientStore, physics)
 
-	select {}
+	server := server.NewServer("[::]:8080", engine, clientStore, authService)
+
+	go func() {
+		ticker := time.NewTicker(5 * time.Minute)
+		for range ticker.C {
+			tokenRep.DeleteExpired()
+		}
+	}()
+
+	server.StartServer()
+	engine.StartEngine()
 }
