@@ -5,6 +5,7 @@ import (
 	"math"
 
 	"github.com/rhydori/biggulus/pkg/helper"
+	"github.com/rhydori/biggulus/pkg/protocol"
 	"github.com/rhydori/biggulus/pkg/session"
 	"github.com/rhydori/logs"
 )
@@ -30,9 +31,7 @@ func (p *Physics) ProcessMovement(clients []*session.Client, delta float64, Upda
 			continue
 		}
 		charSnap := client.Char.CharacterSnapshot()
-		if charSnap == nil || charSnap.Input == nil {
-			continue
-		}
+
 		input := charSnap.Input
 		pos := charSnap.Position
 		last := charSnap.LastPosition
@@ -61,7 +60,9 @@ func (p *Physics) ProcessMovement(clients []*session.Client, delta float64, Upda
 			newPos := helper.Vector2{X: nx, Y: ny}
 			client.Char.ApplyPosition(newPos)
 
-			msg := []byte(fmt.Sprintf("move|%s|%.2f|%.2f", client.ID, nx, ny))
+			xStr := fmt.Sprintf("%.2f", nx)
+			yStr := fmt.Sprintf("%.2f", ny)
+			msg := protocol.CreateMessageBytes("character", "move", client.ID, xStr, yStr)
 			select {
 			case UpdateCh <- msg:
 			default:
