@@ -26,7 +26,7 @@ func NewEngine(tickInterval time.Duration, cs *session.ClientStore, physic *Phys
 }
 
 func (e *Engine) StartEngine() {
-	logs.Info("Engine started at ", e.tick)
+	logs.Infof("Engine started at %s", e.tick)
 
 	ticker := time.NewTicker(e.tick)
 	defer ticker.Stop()
