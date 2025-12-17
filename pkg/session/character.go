@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/rhydori/biggulus/pkg/helper"
+	"github.com/rhydori/biggulus/pkg/protocol"
 	"github.com/rhydori/logs"
 )
 
@@ -30,36 +31,29 @@ func NewCharacter() *Character {
 	}
 }
 
-func (char *Character) HandleCharacter(msg []string) {
-	if len(msg) < 2 {
-		logs.Warnf("HandleCharacter: malformed message: %v", msg)
+func (char *Character) HandleCharacter(msg *protocol.Message) {
+	if msg == nil {
+		logs.Warnf("HandleCharacter: nil message received")
 		return
 	}
 
-	action := msg[1]
-	if action != "move" {
+	action := msg.Action
+	switch msg.Action {
+	case "move":
+		char.UpdateCharacterPosition(msg.Params)
+	default:
 		logs.Warnf("HandleCharacter: Action not found - %s", action)
 		return
 	}
-	switch action {
-	case "move":
-		char.UpdateCharacterPosition(msg)
-	}
 }
 
-func (char *Character) CharacterSnapshot() *Character {
+func (char *Character) CharacterSnapshot() Character {
 	char.Mu.Lock()
 	defer char.Mu.Unlock()
 
-	inputCopy := &Input{
-		Left:  char.Left,
-		Right: char.Right,
-		Up:    char.Up,
-		Down:  char.Down,
-	}
-
-	return &Character{
-		Input:        inputCopy,
+	inputCopy := *char.Input
+	return Character{
+		Input:        &inputCopy,
 		Position:     char.Position,
 		LastPosition: char.LastPosition,
 	}
@@ -74,26 +68,26 @@ func (char *Character) ApplyPosition(pos helper.Vector2) {
 }
 
 func (char *Character) UpdateCharacterPosition(msg []string) {
-	if len(msg) < 4 {
-		logs.Warnf("UpdateCharacterXY: malformed message: %v", msg)
+	if len(msg) < 2 {
+		logs.Warnf("UpdateCharacterPosition: Malformed message '%s'", msg)
 		return
 	}
-
-	key := msg[2]
-	state := msg[3]
+	key := msg[0]
+	state := msg[1]
 	switch key {
 	case "right", "left", "up", "down":
 	default:
-		logs.Warnf("UpdateCharacterPosition: InputKey not found: %s", key)
+		logs.Warnf("UpdateCharacterPosition: Invalid Entity '%s'", key)
 		return
 	}
 	switch state {
 	case "pressed", "released":
 	default:
-		logs.Warnf("UpdateCharacterPosition: InputState not found: %s", state)
+		logs.Warnf("UpdateCharacterPosition: Invalid InputState '%s'", state)
 		return
 	}
 
+	// NEED TO IMPLEMENT HEARTBEAT ON PRESSED IN CASE CLIENT CRASHES WHILE PRESSING
 	val := state == "pressed"
 	char.Mu.Lock()
 	defer char.Mu.Unlock()
